@@ -3,7 +3,7 @@
     const MENU_SELECTOR = "yt-sort-filter-sub-menu-renderer";
     const TRIGGER_SELECTOR = "#trigger";
     const LABEL_SELECTOR = "#label-text";
-    const ITEM_SELECTOR = "tp-yt-paper-item, yt-compact-link-renderer";
+    const ITEM_SELECTOR = "tp-yt-paper-item";
     const CHECK_INTERVAL_MS = 250;
     const OPEN_INTERVAL_MS = 500;
     const MAX_RUNTIME_MS = 10000;
@@ -22,11 +22,6 @@
 
         clearInterval(intervalId);
         clearTimeout(timeoutId);
-
-        menu = null;
-        trigger = null;
-        intervalId = null;
-        timeoutId = null;
     };
 
     const matchesTarget = element => {
