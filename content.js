@@ -10,8 +10,10 @@
 
     let menu = null;
     let trigger = null;
+    let observer = null;
     let intervalId = null;
     let timeoutId = null;
+    let frameId = null;
     let lastOpenTime = 0;
     let stopped = false;
 
@@ -20,8 +22,10 @@
 
         stopped = true;
 
+        observer.disconnect();
         clearInterval(intervalId);
         clearTimeout(timeoutId);
+        cancelAnimationFrame(frameId);
     };
 
     const matchesTarget = element => {
@@ -60,7 +64,7 @@
         return null;
     };
 
-    const run = () => {
+    const run = passive => {
         if (stopped) return;
 
         const currentMenu = getMenu();
@@ -82,6 +86,8 @@
             return;
         }
 
+        if (passive) return;
+
         const now = performance.now();
 
         if (now - lastOpenTime >= OPEN_INTERVAL_MS) {
@@ -89,6 +95,18 @@
             currentTrigger.click();
         }
     };
+
+    const scheduleRun = () => {
+        if (stopped || frameId !== null) return;
+
+        frameId = requestAnimationFrame(() => {
+            frameId = null;
+            run(true);
+        });
+    };
+
+    observer = new MutationObserver(scheduleRun);
+    observer.observe(document, { childList: true, subtree: true });
 
     intervalId = setInterval(run, CHECK_INTERVAL_MS);
     timeoutId = setTimeout(stop, MAX_RUNTIME_MS);
