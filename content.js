@@ -4,6 +4,7 @@
     const TRIGGER_SELECTOR = "#trigger";
     const LABEL_SELECTOR = "#label-text";
     const ITEM_SELECTOR = "tp-yt-paper-item, yt-compact-link-renderer";
+    const READY_ATTRIBUTE = "data-live-chat-ready";
     const CHECK_INTERVAL_MS = 250;
     const OPEN_INTERVAL_MS = 500;
     const MAX_RUNTIME_MS = 10000;
@@ -14,7 +15,8 @@
     let intervalId = null;
     let timeoutId = null;
     let frameId = null;
-    let lastOpenTime = 0;
+    let lastOpenTime = -Infinity;
+    let selected = false;
     let stopped = false;
 
     const stop = () => {
@@ -26,6 +28,8 @@
         clearInterval(intervalId);
         clearTimeout(timeoutId);
         cancelAnimationFrame(frameId);
+
+        document.documentElement.setAttribute(READY_ATTRIBUTE, "");
     };
 
     const matchesTarget = element => {
@@ -78,11 +82,13 @@
             return;
         }
 
+        if (selected) return;
+
         const targetItem = getTargetItem();
 
         if (targetItem instanceof HTMLElement) {
+            selected = true;
             targetItem.click();
-            stop();
             return;
         }
 
@@ -110,6 +116,4 @@
 
     intervalId = setInterval(run, CHECK_INTERVAL_MS);
     timeoutId = setTimeout(stop, MAX_RUNTIME_MS);
-
-    run();
 })();

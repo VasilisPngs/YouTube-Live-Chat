@@ -6,6 +6,7 @@
     {
       "matches": ["https://www.youtube.com/live_chat*"],
       "all_frames": true,
+      "css": ["content.css"],
       "js": ["content.js"],
       "run_at": "document_start"
     }
