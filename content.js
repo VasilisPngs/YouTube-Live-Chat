@@ -1,44 +1,55 @@
 (() => {
-    const TARGET_PATTERN = /\blive\b|\u03b6\u03c9\u03bd\u03c4\u03b1\u03bd/iu;
+    const TARGET_PATTERN = /\blive|\u03b6\u03c9\u03bd\u03c4\u03b1\u03bd/iu;
     const MENU_SELECTOR = "yt-sort-filter-sub-menu-renderer";
+    const SCOPE_SELECTOR = "yt-sort-filter-sub-menu-renderer, tp-yt-iron-dropdown";
     const TRIGGER_SELECTOR = "#trigger";
     const LABEL_SELECTOR = "#label-text";
     const ITEM_SELECTOR = "tp-yt-paper-item, yt-compact-link-renderer";
     const READY_ATTRIBUTE = "data-live-chat-ready";
     const CHECK_INTERVAL_MS = 250;
     const OPEN_INTERVAL_MS = 500;
+    const MENU_DEADLINE_MS = 3000;
     const MAX_RUNTIME_MS = 10000;
+
+    const startTime = performance.now();
 
     let menu = null;
     let trigger = null;
     let observer = null;
-    let intervalId = null;
-    let timeoutId = null;
-    let frameId = null;
+    let intervalId = 0;
+    let timeoutId = 0;
+    let frameId = 0;
     let lastOpenTime = -Infinity;
     let selected = false;
     let stopped = false;
+
+    const releaseObserver = () => {
+        if (!observer) return;
+
+        observer.disconnect();
+        observer = null;
+
+        cancelAnimationFrame(frameId);
+        frameId = 0;
+    };
 
     const stop = () => {
         if (stopped) return;
 
         stopped = true;
 
-        observer.disconnect();
+        releaseObserver();
         clearInterval(intervalId);
         clearTimeout(timeoutId);
-        cancelAnimationFrame(frameId);
 
         document.documentElement.setAttribute(READY_ATTRIBUTE, "");
     };
 
-    const matchesTarget = element => {
-        return element instanceof Element && TARGET_PATTERN.test(element.textContent || "");
-    };
+    timeoutId = setTimeout(stop, MAX_RUNTIME_MS);
 
-    const isVisible = element => {
-        return element instanceof Element && element.getClientRects().length > 0;
-    };
+    const matchesTarget = element => TARGET_PATTERN.test(element.textContent);
+
+    const isVisible = element => element.getClientRects().length > 0;
 
     const getMenu = () => {
         if (menu?.isConnected) return menu;
@@ -52,62 +63,73 @@
     const getTrigger = currentMenu => {
         if (trigger?.isConnected) return trigger;
 
-        const candidate = currentMenu.querySelector(TRIGGER_SELECTOR);
-        trigger = candidate instanceof HTMLElement ? candidate : null;
+        trigger = currentMenu.querySelector(TRIGGER_SELECTOR);
 
         return trigger;
     };
 
-    const getTargetItem = () => {
-        const items = document.querySelectorAll(ITEM_SELECTOR);
+    const scanItems = () => {
+        let open = false;
 
-        for (const item of items) {
-            if (isVisible(item) && matchesTarget(item)) return item;
+        for (const scope of document.querySelectorAll(SCOPE_SELECTOR)) {
+            for (const item of scope.querySelectorAll(ITEM_SELECTOR)) {
+                if (!isVisible(item)) continue;
+                if (matchesTarget(item)) return { open: true, match: item };
+
+                open = true;
+            }
         }
 
-        return null;
+        return { open, match: null };
     };
 
-    const run = passive => {
+    const run = () => {
         if (stopped) return;
 
         const currentMenu = getMenu();
-        if (!currentMenu) return;
 
-        const currentTrigger = getTrigger(currentMenu);
-        if (!currentTrigger) return;
+        if (!currentMenu) {
+            if (performance.now() - startTime >= MENU_DEADLINE_MS) stop();
+            return;
+        }
 
-        if (matchesTarget(currentMenu.querySelector(LABEL_SELECTOR))) {
+        releaseObserver();
+
+        const label = currentMenu.querySelector(LABEL_SELECTOR);
+
+        if (label && matchesTarget(label)) {
             stop();
             return;
         }
 
         if (selected) return;
 
-        const targetItem = getTargetItem();
+        const { open, match } = scanItems();
 
-        if (targetItem instanceof HTMLElement) {
+        if (match) {
             selected = true;
-            targetItem.click();
+            match.click();
             return;
         }
 
-        if (passive) return;
+        if (open) return;
 
         const now = performance.now();
+        if (now - lastOpenTime < OPEN_INTERVAL_MS) return;
 
-        if (now - lastOpenTime >= OPEN_INTERVAL_MS) {
-            lastOpenTime = now;
-            currentTrigger.click();
-        }
+        const currentTrigger = getTrigger(currentMenu);
+        if (!currentTrigger) return;
+
+        lastOpenTime = now;
+        currentTrigger.click();
     };
 
     const scheduleRun = () => {
-        if (stopped || frameId !== null) return;
+        if (stopped || frameId) return;
 
         frameId = requestAnimationFrame(() => {
-            frameId = null;
-            run(true);
+            frameId = 0;
+            run();
         });
     };
 
@@ -115,5 +137,4 @@
     observer.observe(document, { childList: true, subtree: true });
 
     intervalId = setInterval(run, CHECK_INTERVAL_MS);
-    timeoutId = setTimeout(stop, MAX_RUNTIME_MS);
 })();
