@@ -1,140 +1,181 @@
 (() => {
-    const TARGET_PATTERN = /\blive|\u03b6\u03c9\u03bd\u03c4\u03b1\u03bd/iu;
-    const MENU_SELECTOR = "yt-sort-filter-sub-menu-renderer";
-    const SCOPE_SELECTOR = "yt-sort-filter-sub-menu-renderer, tp-yt-iron-dropdown";
-    const TRIGGER_SELECTOR = "#trigger";
-    const LABEL_SELECTOR = "#label-text";
-    const ITEM_SELECTOR = "tp-yt-paper-item, yt-compact-link-renderer";
-    const READY_ATTRIBUTE = "data-live-chat-ready";
-    const CHECK_INTERVAL_MS = 250;
-    const OPEN_INTERVAL_MS = 500;
-    const MENU_DEADLINE_MS = 3000;
-    const MAX_RUNTIME_MS = 10000;
+  "use strict";
 
-    const startTime = performance.now();
+  const TARGET_PATTERN = /\blive|\u03b6\u03c9\u03bd\u03c4\u03b1\u03bd/iu;
+  const MENU_SELECTOR = "yt-sort-filter-sub-menu-renderer";
+  const SCOPE_SELECTOR = "yt-sort-filter-sub-menu-renderer, tp-yt-iron-dropdown";
+  const TRIGGER_SELECTOR = "#trigger";
+  const LABEL_SELECTOR = "#label-text";
+  const ITEM_SELECTOR = "tp-yt-paper-item, yt-compact-link-renderer";
+  const READY_ATTRIBUTE = "data-live-chat-ready";
+  const CHECK_INTERVAL_MS = 250;
+  const OPEN_INTERVAL_MS = 1200;
+  const MENU_DEADLINE_MS = 3000;
+  const MAX_RUNTIME_MS = 12000;
+  const ABANDON_AFTER_MS = 300000;
 
-    let menu = null;
-    let trigger = null;
-    let observer = null;
-    let intervalId = 0;
-    let timeoutId = 0;
-    let frameId = 0;
-    let lastOpenTime = -Infinity;
-    let selected = false;
-    let stopped = false;
+  let menu = null;
+  let trigger = null;
+  let observer = null;
+  let intervalId = 0;
+  let abandonId = 0;
+  let frameId = 0;
+  let lastOpenTime = -Infinity;
+  let selected = false;
+  let stopped = false;
+  let readyMark = null;
+  let visibleSince = document.hidden ? 0 : performance.now();
+  let visibleAccum = 0;
 
-    const releaseObserver = () => {
-        if (!observer) return;
+  const visibleMs = () => visibleAccum + (visibleSince ? performance.now() - visibleSince : 0);
 
-        observer.disconnect();
-        observer = null;
+  const releaseObserver = () => {
+    if (!observer) return;
 
-        cancelAnimationFrame(frameId);
-        frameId = 0;
-    };
+    observer.disconnect();
+    observer = null;
 
-    const stop = () => {
-        if (stopped) return;
+    cancelAnimationFrame(frameId);
+    frameId = 0;
+  };
 
-        stopped = true;
+  const onVisibilityChange = () => {
+    if (document.hidden) {
+      if (visibleSince) {
+        visibleAccum += performance.now() - visibleSince;
+        visibleSince = 0;
+      }
+      return;
+    }
 
-        releaseObserver();
-        clearInterval(intervalId);
-        clearTimeout(timeoutId);
+    visibleSince ||= performance.now();
+    scheduleRun();
+  };
 
-        document.documentElement.setAttribute(READY_ATTRIBUTE, "");
-    };
+  const stop = () => {
+    if (stopped) return;
 
-    timeoutId = setTimeout(stop, MAX_RUNTIME_MS);
+    stopped = true;
 
-    const matchesTarget = element => TARGET_PATTERN.test(element.textContent);
+    releaseObserver();
+    clearInterval(intervalId);
+    clearTimeout(abandonId);
+    document.removeEventListener("visibilitychange", onVisibilityChange);
 
-    const isVisible = element => element.getClientRects().length > 0;
+    document.documentElement.setAttribute(READY_ATTRIBUTE, "");
+  };
 
-    const getMenu = () => {
-        if (menu?.isConnected) return menu;
+  const matchesTarget = (element) => TARGET_PATTERN.test(element.textContent);
 
-        trigger = null;
-        menu = document.querySelector(MENU_SELECTOR);
+  const isVisible = (element) => element.getClientRects().length > 0;
 
-        return menu;
-    };
+  const getMenu = () => {
+    if (menu?.isConnected) return menu;
 
-    const getTrigger = currentMenu => {
-        if (trigger?.isConnected) return trigger;
+    trigger = null;
+    menu = document.querySelector(MENU_SELECTOR);
 
-        trigger = currentMenu.querySelector(TRIGGER_SELECTOR);
+    return menu;
+  };
 
-        return trigger;
-    };
+  const getTrigger = (currentMenu) => {
+    if (trigger?.isConnected) return trigger;
 
-    const scanItems = () => {
-        let open = false;
+    trigger = currentMenu.querySelector(TRIGGER_SELECTOR);
 
-        for (const scope of document.querySelectorAll(SCOPE_SELECTOR)) {
-            for (const item of scope.querySelectorAll(ITEM_SELECTOR)) {
-                if (!isVisible(item)) continue;
-                if (matchesTarget(item)) return { open: true, match: item };
+    return trigger;
+  };
 
-                open = true;
-            }
-        }
+  const scanItems = () => {
+    let open = false;
 
-        return { open, match: null };
-    };
+    for (const scope of document.querySelectorAll(SCOPE_SELECTOR)) {
+      for (const item of scope.querySelectorAll(ITEM_SELECTOR)) {
+        if (!isVisible(item)) continue;
+        if (matchesTarget(item)) return { open: true, match: item };
 
-    const run = () => {
-        if (stopped) return;
+        open = true;
+      }
+    }
 
-        const currentMenu = getMenu();
+    return { open, match: null };
+  };
 
-        if (!currentMenu) {
-            if (performance.now() - startTime >= MENU_DEADLINE_MS) stop();
-            return;
-        }
+  const run = () => {
+    if (stopped || document.hidden) return;
 
-        releaseObserver();
+    if (visibleMs() >= MAX_RUNTIME_MS) {
+      stop();
+      return;
+    }
 
-        const label = currentMenu.querySelector(LABEL_SELECTOR);
+    const currentMenu = getMenu();
 
-        if (label && matchesTarget(label)) {
-            stop();
-            return;
-        }
+    if (!currentMenu) {
+      if (document.readyState === "loading") return;
 
-        if (selected) return;
+      readyMark ??= visibleMs();
 
-        const { open, match } = scanItems();
+      if (visibleMs() - readyMark >= MENU_DEADLINE_MS) stop();
+      return;
+    }
 
-        if (match) {
-            selected = true;
-            match.click();
-            return;
-        }
+    releaseObserver();
 
-        if (open) return;
+    const label = currentMenu.querySelector(LABEL_SELECTOR);
 
-        const now = performance.now();
-        if (now - lastOpenTime < OPEN_INTERVAL_MS) return;
+    if (label && matchesTarget(label)) {
+      stop();
+      return;
+    }
 
-        const currentTrigger = getTrigger(currentMenu);
-        if (!currentTrigger) return;
+    if (selected) return;
 
-        lastOpenTime = now;
-        currentTrigger.click();
-    };
+    const { open, match } = scanItems();
 
-    const scheduleRun = () => {
-        if (stopped || frameId) return;
+    if (match) {
+      selected = true;
+      match.click();
+      return;
+    }
 
-        frameId = requestAnimationFrame(() => {
-            frameId = 0;
-            run();
-        });
-    };
+    if (open) return;
 
-    observer = new MutationObserver(scheduleRun);
-    observer.observe(document, { childList: true, subtree: true });
+    const now = performance.now();
 
-    intervalId = setInterval(run, CHECK_INTERVAL_MS);
+    if (now - lastOpenTime < OPEN_INTERVAL_MS) return;
+
+    const currentTrigger = getTrigger(currentMenu);
+
+    if (!currentTrigger) return;
+
+    lastOpenTime = now;
+    currentTrigger.click();
+  };
+
+  const guardedRun = () => {
+    try {
+      run();
+    } catch {
+      stop();
+    }
+  };
+
+  const scheduleRun = () => {
+    if (stopped || frameId) return;
+
+    frameId = requestAnimationFrame(() => {
+      frameId = 0;
+      guardedRun();
+    });
+  };
+
+  document.addEventListener("visibilitychange", onVisibilityChange);
+
+  abandonId = setTimeout(stop, ABANDON_AFTER_MS);
+
+  observer = new MutationObserver(scheduleRun);
+  observer.observe(document, { childList: true, subtree: true });
+
+  intervalId = setInterval(guardedRun, CHECK_INTERVAL_MS);
 })();
