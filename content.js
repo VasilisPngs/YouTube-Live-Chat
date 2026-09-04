@@ -16,10 +16,8 @@
 
   let menu = null;
   let trigger = null;
-  let observer = null;
   let intervalId = 0;
   let abandonId = 0;
-  let frameId = 0;
   let lastOpenTime = -Infinity;
   let selected = false;
   let stopped = false;
@@ -28,16 +26,6 @@
   let visibleAccum = 0;
 
   const visibleMs = () => visibleAccum + (visibleSince ? performance.now() - visibleSince : 0);
-
-  const releaseObserver = () => {
-    if (!observer) return;
-
-    observer.disconnect();
-    observer = null;
-
-    cancelAnimationFrame(frameId);
-    frameId = 0;
-  };
 
   const onVisibilityChange = () => {
     if (document.hidden) {
@@ -49,7 +37,7 @@
     }
 
     visibleSince ||= performance.now();
-    scheduleRun();
+    guardedRun();
   };
 
   const stop = () => {
@@ -57,7 +45,6 @@
 
     stopped = true;
 
-    releaseObserver();
     clearInterval(intervalId);
     clearTimeout(abandonId);
     document.removeEventListener("visibilitychange", onVisibilityChange);
@@ -65,9 +52,9 @@
     document.documentElement.setAttribute(READY_ATTRIBUTE, "");
   };
 
-  const matchesTarget = (element) => TARGET_PATTERN.test(element.textContent);
+  const matchesTarget = element => TARGET_PATTERN.test(element.textContent);
 
-  const isVisible = (element) => element.getClientRects().length > 0;
+  const isVisible = element => element.getClientRects().length > 0;
 
   const getMenu = () => {
     if (menu?.isConnected) return menu;
@@ -78,7 +65,7 @@
     return menu;
   };
 
-  const getTrigger = (currentMenu) => {
+  const getTrigger = currentMenu => {
     if (trigger?.isConnected) return trigger;
 
     trigger = currentMenu.querySelector(TRIGGER_SELECTOR);
@@ -120,8 +107,6 @@
       return;
     }
 
-    releaseObserver();
-
     const label = currentMenu.querySelector(LABEL_SELECTOR);
 
     if (label && matchesTarget(label)) {
@@ -161,21 +146,8 @@
     }
   };
 
-  const scheduleRun = () => {
-    if (stopped || frameId) return;
-
-    frameId = requestAnimationFrame(() => {
-      frameId = 0;
-      guardedRun();
-    });
-  };
-
   document.addEventListener("visibilitychange", onVisibilityChange);
 
   abandonId = setTimeout(stop, ABANDON_AFTER_MS);
-
-  observer = new MutationObserver(scheduleRun);
-  observer.observe(document, { childList: true, subtree: true });
-
   intervalId = setInterval(guardedRun, CHECK_INTERVAL_MS);
 })();
