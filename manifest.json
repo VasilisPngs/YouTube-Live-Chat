@@ -1,7 +1,8 @@
 {
   "manifest_version": 3,
   "name": "YouTube Live Chat",
-  "version": "1.0.0",
+  "version": "1.0.1",
+  "minimum_chrome_version": "152",
   "icons": {
     "16": "icon16.png",
     "32": "icon32.png",
@@ -19,8 +20,7 @@
       "js": [
         "content.js"
       ],
-      "run_at": "document_start",
-      "all_frames": true
+      "run_at": "document_start"
     }
   ]
 }
