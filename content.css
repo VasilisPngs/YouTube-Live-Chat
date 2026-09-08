@@ -1,4 +1,3 @@
-html:not([data-live-chat-ready]) yt-sort-filter-sub-menu-renderer,
-html:not([data-live-chat-ready]) yt-sort-filter-sub-menu-renderer tp-yt-iron-dropdown {
+html:not([data-live-chat-ready]) yt-sort-filter-sub-menu-renderer {
   visibility: hidden;
 }
