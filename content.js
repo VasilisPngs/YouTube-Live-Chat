@@ -12,6 +12,8 @@
   const TIMEOUT_MS = 5000;
   const POST_CLICK_DELAY_MS = 300;
 
+  const controller = new AbortController();
+
   let intervalId = 0;
   let timeoutId = 0;
   let lastOpenTime = -Infinity;
@@ -25,7 +27,7 @@
 
     clearInterval(intervalId);
     clearTimeout(timeoutId);
-    document.removeEventListener("visibilitychange", onVisibilityChange);
+    controller.abort();
 
     document.documentElement.setAttribute(READY_ATTRIBUTE, "");
   };
@@ -96,7 +98,7 @@
   const init = () => {
     timeoutId = setTimeout(stop, TIMEOUT_MS);
     intervalId = setInterval(guardedRun, POLL_INTERVAL_MS);
-    document.addEventListener("visibilitychange", onVisibilityChange);
+    document.addEventListener("visibilitychange", onVisibilityChange, { signal: controller.signal });
     guardedRun();
   };
 
