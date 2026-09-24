@@ -32,7 +32,7 @@
     document.documentElement.setAttribute(READY_ATTRIBUTE, "");
   };
 
-  const matchesTarget = element => TARGET_PATTERN.test(element.textContent);
+  const matchesTarget = (element) => TARGET_PATTERN.test(element.textContent);
 
   const collectOpenItems = (menu) => {
     const items = [];
@@ -64,7 +64,7 @@
       if (!matchesTarget(item)) continue;
 
       itemClicked = true;
-      (item.closest("a") || item).click();
+      (item.closest("a") ?? item).click();
       setTimeout(stop, POST_CLICK_DELAY_MS);
       return;
     }
