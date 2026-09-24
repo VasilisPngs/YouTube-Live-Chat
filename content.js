@@ -32,6 +32,16 @@
 
   const matchesTarget = element => TARGET_PATTERN.test(element.textContent);
 
+  const collectOpenItems = (menu) => {
+    const items = [];
+
+    for (const item of menu.querySelectorAll(ITEM_SELECTOR)) {
+      if (item.getClientRects().length > 0) items.push(item);
+    }
+
+    return items;
+  };
+
   const run = () => {
     if (stopped) return;
 
@@ -46,19 +56,22 @@
 
     if (itemClicked) return;
 
-    const now = performance.now();
+    const items = collectOpenItems(menu);
 
-    if (now - lastOpenTime < OPEN_INTERVAL_MS) {
-      for (const item of document.querySelectorAll(ITEM_SELECTOR)) {
-        if (matchesTarget(item)) {
-          itemClicked = true;
-          (item.closest("a") || item).click();
-          setTimeout(stop, POST_CLICK_DELAY_MS);
-          return;
-        }
-      }
+    for (const item of items) {
+      if (!matchesTarget(item)) continue;
+
+      itemClicked = true;
+      (item.closest("a") || item).click();
+      setTimeout(stop, POST_CLICK_DELAY_MS);
       return;
     }
+
+    if (items.length > 0) return;
+
+    const now = performance.now();
+
+    if (now - lastOpenTime < OPEN_INTERVAL_MS) return;
 
     const trigger = menu.querySelector(TRIGGER_SELECTOR);
     if (!trigger) return;
