@@ -12,7 +12,7 @@
   "content_scripts": [
     {
       "matches": [
-        "*://*.youtube.com/live_chat*"
+        "https://*.youtube.com/live_chat*"
       ],
       "css": [
         "content.css"

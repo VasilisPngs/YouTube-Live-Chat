@@ -102,9 +102,5 @@
     guardedRun();
   };
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init, { once: true });
-  } else {
-    init();
-  }
+  document.addEventListener("DOMContentLoaded", init, { once: true });
 })();
