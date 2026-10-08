@@ -5,7 +5,7 @@
   const MENU_SELECTOR = "yt-sort-filter-sub-menu-renderer";
   const TRIGGER_SELECTOR = "#trigger";
   const LABEL_SELECTOR = "#label-text";
-  const ITEM_SELECTOR = "tp-yt-paper-item, yt-compact-link-renderer";
+  const ITEM_SELECTOR = "tp-yt-paper-item";
   const READY_ATTRIBUTE = "data-live-chat-ready";
   const POLL_INTERVAL_MS = 200;
   const OPEN_INTERVAL_MS = 1000;
