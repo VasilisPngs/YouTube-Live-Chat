@@ -20,13 +20,17 @@
   let itemClicked = false;
   let stopped = false;
 
+  const pause = () => {
+    clearInterval(intervalId);
+    clearTimeout(timeoutId);
+  };
+
   const stop = () => {
     if (stopped) return;
 
     stopped = true;
 
-    clearInterval(intervalId);
-    clearTimeout(timeoutId);
+    pause();
     controller.abort();
 
     document.documentElement.setAttribute(READY_ATTRIBUTE, "");
@@ -90,16 +94,21 @@
     }
   };
 
-  const onVisibilityChange = () => {
-    if (document.hidden) return;
+  const resume = () => {
+    timeoutId = setTimeout(stop, TIMEOUT_MS);
+    intervalId = setInterval(guardedRun, POLL_INTERVAL_MS);
     guardedRun();
   };
 
+  const onVisibilityChange = () => {
+    if (document.hidden) pause();
+    else resume();
+  };
+
   const init = () => {
-    timeoutId = setTimeout(stop, TIMEOUT_MS);
-    intervalId = setInterval(guardedRun, POLL_INTERVAL_MS);
     document.addEventListener("visibilitychange", onVisibilityChange, { signal: controller.signal });
-    guardedRun();
+
+    if (!document.hidden) resume();
   };
 
   document.addEventListener("DOMContentLoaded", init, { once: true });
