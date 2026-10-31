@@ -49,8 +49,6 @@
   };
 
   const run = () => {
-    if (stopped) return;
-
     const menu = document.querySelector(MENU_SELECTOR);
     if (!menu) return;
 
@@ -86,18 +84,10 @@
     trigger.click();
   };
 
-  const guardedRun = () => {
-    try {
-      run();
-    } catch {
-      stop();
-    }
-  };
-
   const resume = () => {
     timeoutId = setTimeout(stop, TIMEOUT_MS);
-    intervalId = setInterval(guardedRun, POLL_INTERVAL_MS);
-    guardedRun();
+    intervalId = setInterval(run, POLL_INTERVAL_MS);
+    run();
   };
 
   const onVisibilityChange = () => {
