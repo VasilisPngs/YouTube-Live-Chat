@@ -18,7 +18,6 @@
   let timeoutId = 0;
   let lastOpenTime = -Infinity;
   let itemClicked = false;
-  let stopped = false;
 
   const pause = () => {
     clearInterval(intervalId);
@@ -26,10 +25,6 @@
   };
 
   const stop = () => {
-    if (stopped) return;
-
-    stopped = true;
-
     pause();
     controller.abort();
 
@@ -66,7 +61,7 @@
       if (!matchesTarget(item)) continue;
 
       itemClicked = true;
-      (item.closest("a") ?? item).click();
+      item.click();
       setTimeout(stop, POST_CLICK_DELAY_MS);
       return;
     }
